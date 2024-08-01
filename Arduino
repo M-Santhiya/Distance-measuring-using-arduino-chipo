@@ -1,0 +1,64 @@
+#include <ESP8266WiFi.h> // Include the Wi-Fi library for ESP8266
+#include <ESP8266HTTPClient.h> // Include the HTTP client library for ESP8266
+
+// Define pin numbers for the ultrasonic sensor
+const int trigPin = D1; // Trigger pin connected to D1
+const int echoPin = D2; // Echo pin connected to D2
+
+// Wi-Fi credentials
+const char* ssid = "your_SSID"; // Replace with your Wi-Fi SSID
+const char* password = "your_PASSWORD"; // Replace with your Wi-Fi password
+
+// IoT platform URL
+const String serverName = "http://your-iot-platform.com/update"; // Replace with your IoT platform URL
+
+void setup() {
+  // Initialize serial communication
+  Serial.begin(115200);
+
+  // Initialize the ultrasonic sensor pins
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to Wi-Fi...");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+  }
+  Serial.println("Connected to Wi-Fi.");
+}
+
+void loop() {
+  // Measure the distance
+  long duration, distance;
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  distance = duration * 0.034 / 2; // Calculate distance in cm
+
+  // Send data to IoT platform
+  if (WiFi.status() == WL_CONNECTED) { // Check Wi-Fi connection
+    HTTPClient http;
+    String serverPath = serverName + "?distance=" + String(distance); // Append distance data to the URL
+    http.begin(serverPath);
+    int httpResponseCode = http.GET(); // Send HTTP GET request
+
+    if (httpResponseCode > 0) {
+      String payload = http.getString();
+      Serial.println("Data sent to IoT platform successfully.");
+      Serial.println(payload);
+    } else {
+      Serial.println("Error sending data to IoT platform.");
+    }
+    http.end(); // Close the connection
+  } else {
+    Serial.println("Wi-Fi disconnected.");
+  }
+
+  delay(60000); // Wait for a minute before the next reading
+}
